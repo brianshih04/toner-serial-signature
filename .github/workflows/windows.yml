@@ -1,0 +1,17 @@
+name: Windows C validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test with MSVC and OpenSSL
+        shell: pwsh
+        run: ./run_tests.ps1 -VcpkgRoot "$env:VCPKG_INSTALLATION_ROOT"

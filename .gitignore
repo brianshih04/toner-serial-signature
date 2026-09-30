@@ -1,0 +1,11 @@
+/build/
+/vcpkg_installed/
+/.vs/
+*.exe
+*.obj
+*.lib
+*.pdb
+*.ilk
+*.pem
+*.sig
+*.bin
