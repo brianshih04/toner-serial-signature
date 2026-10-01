@@ -28,6 +28,16 @@ if(MSVC AND TARGET OpenSSL::applink)
     endforeach()
 endif()
 
+# Keep argv and narrow fopen paths in UTF-8 on Windows 10 1903 and newer.
+# This lets the CLI and its Traditional Chinese GUI use Unicode file paths
+# independently of the host machine's legacy ANSI system code page.
+if(MSVC)
+    foreach(target IN ITEMS keygen sign verify record_test)
+        target_link_options(${target} PRIVATE
+            "/MANIFESTINPUT:${CMAKE_CURRENT_SOURCE_DIR}/windows_utf8.manifest")
+    endforeach()
+endif()
+
 foreach(target IN ITEMS toner_record keygen sign verify record_test)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /WX /wd4996 /utf-8)
