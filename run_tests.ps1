@@ -201,3 +201,6 @@ finally {
         Remove-Item -LiteralPath $work -Recurse -Force
     }
 }
+# The last negative test deliberately returns 1. GitHub's pwsh wrapper
+# propagates LASTEXITCODE even when the suite itself completed successfully.
+$global:LASTEXITCODE = 0
