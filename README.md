@@ -1,25 +1,25 @@
-# Toner serial signature — C reference and Windows tests
+# 碳粉匣序號簽章：C 參考程式與 Windows 測試
 
-This is a development reference for signing a canonical ATSHA204A cartridge record with ECDSA P-256/SHA-256. It includes three command-line C programs (`keygen`, `sign`, `verify`), one shared record encoder, fixed golden vectors, and a native Windows test runner. It does **not** write to a chip or integrate with printer firmware.
+這是以 ECDSA P-256/SHA-256 簽署 ATSHA204A 碳粉匣標準化紀錄的開發參考程式。專案包含三支命令列 C 程式（`keygen`、`sign`、`verify`）、共用的紀錄編碼器、固定的黃金測試向量，以及可在 Windows 原生執行的測試腳本。程式**不會燒錄晶片，也未整合至印表機韌體**。
 
-## Run on Windows
+## 在 Windows 執行
 
-Prerequisites: Visual Studio 2022 C++ Build Tools (MSVC and CMake), vcpkg, PowerShell 5.1 or newer, and network access for vcpkg's first OpenSSL installation. Visual Studio's bundled vcpkg is detected automatically; alternatively pass `-VcpkgRoot`.
+先安裝 Visual Studio 2022 C++ Build Tools（含 MSVC 與 CMake）、vcpkg，以及 PowerShell 5.1 或更新版本。首次透過 vcpkg 安裝 OpenSSL 時需能連線。腳本會自動尋找 Visual Studio 隨附的 vcpkg；若使用獨立安裝版本，可指定 `-VcpkgRoot`。
 
 ```powershell
 pwsh -File .\run_tests.ps1
-# Or, from Windows PowerShell:
+# 或使用 Windows PowerShell：
 powershell.exe -NoProfile -File .\run_tests.ps1
-# With an independent vcpkg installation:
+# 使用獨立安裝的 vcpkg：
 pwsh -File .\run_tests.ps1 -VcpkgRoot C:\vcpkg
 ```
 
-The script builds the C programs with MSVC and OpenSSL (via CMake/vcpkg), then runs 26 checks. It creates disposable encrypted test keys in the OS temp directory and removes them after testing. `RESULT: 26 passed, 0 failed` is the success criterion. GitHub Actions runs the same script on `windows-2022` for pushes and pull requests. A POSIX `run_tests.sh` is also included.
+腳本透過 CMake/vcpkg，以 MSVC 和 OpenSSL 編譯 C 程式，再執行 26 項檢查。測試用的加密金鑰會建立在作業系統暫存目錄，測試結束後即移除。看到 `RESULT: 26 passed, 0 failed` 即代表全部通過。每次推送或提交 pull request 時，GitHub Actions 也會在 `windows-2022` 執行同一腳本。專案另附適用於 POSIX 環境的 `run_tests.sh`。
 
-## Record and trust model
+## 簽署紀錄與信任模型
 
-The signed record is exactly `"TONER-AUTH"` (10 ASCII bytes, no NUL) | version `0x02` | key ID (1 byte, nonzero) | chip model `0x01` (ATSHA204A) | SKU length + SKU | color (`K/C/M/Y`) | capacity-code length + capacity code | full 9-byte binary chip serial. `record.c` is the single encoder used by both `sign` and `verify`; `record_test.c` holds fixed record and SHA-256 golden vectors. The 64-byte signature is raw `r[32] || s[32]`, not DER.
+簽署紀錄的位元組格式固定為：`"TONER-AUTH"`（10 個 ASCII bytes，不含 NUL）｜版本 `0x02`｜金鑰 ID（1 byte，不得為零）｜晶片型號 `0x01`（ATSHA204A）｜SKU 長度與 SKU｜顏色（`K/C/M/Y`）｜容量代碼長度與容量代碼｜完整的 9-byte 二進位晶片序號。`sign` 與 `verify` 共用 `record.c` 編碼；`record_test.c` 保存固定的紀錄與 SHA-256 黃金測試向量。簽章為 64-byte 原始格式 `r[32] || s[32]`，不是 DER 格式。
 
-The verifier's key ID selects exactly one locally trusted public key (`TRUSTED_KEY_DIR/key-XX.pem` in this CLI demonstration). A cartridge must never supply its own trusted public key. Production firmware must use a pinned key table, obtain the serial **live from the chip configuration zone**, and still perform its independent fresh ATSHA204A MAC check. Signature failure must not silently fall back to a weaker path.
+驗章時，金鑰 ID 只能選取一把機台本地信任的公鑰；此命令列範例以 `TRUSTED_KEY_DIR/key-XX.pem` 模擬公鑰表。不可接受碳粉匣自行提供的公鑰。量產韌體必須內建受信任的公鑰表、從**現場晶片的 Config zone**讀取序號，並另外執行帶有新鮮挑戰的 ATSHA204A MAC 驗證。簽章失敗時，不得靜默退回較弱的驗證路徑。
 
-`keygen.c` and `sign.c` use encrypted PEM only for tests. Production issuance needs a non-exportable private key in an HSM and a controlled signing process. The signature alone cannot prevent chip emulation, relay, or firmware modification. The examples do not claim NIST/FIPS validation, and passing Windows tests is not a substitute for target BSP, cartridge, and factory tests.
+`keygen.c` 與 `sign.c` 使用加密 PEM，僅供測試。量產簽發應在 HSM 中保管不可匯出的私鑰，並建立受控的簽發流程。靜態簽章本身無法防止晶片模擬、即時轉送或韌體遭修改。本範例不宣稱通過 NIST/FIPS 認證；Windows 測試通過也不能取代目標 BSP、實際碳粉匣與產線驗證。
