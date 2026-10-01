@@ -18,7 +18,7 @@ pwsh -File .\run_tests.ps1 -VcpkgRoot C:\vcpkg
 
 ## 繁中圖形介面
 
-完成上述編譯環境安裝後，在 Windows 雙擊 `start_gui.cmd`，或執行：
+可從 [GitHub Releases 下載單檔 GUI](https://github.com/brianshih04/toner-serial-signature/releases/latest/download/TonerSerialSignature.exe)。若使用原始碼，在 Windows 雙擊 `start_gui.cmd`，或執行：
 
 ```powershell
 powershell.exe -NoProfile -STA -File .\toner_gui.ps1
@@ -29,6 +29,10 @@ powershell.exe -NoProfile -STA -File .\toner_gui.ps1
 此介面只是既有 C CLI 的操作殼。它使用本機加密 PEM 私鑰，**不是 HSM 量產簽發系統**，也不會將簽章寫入 ATSHA204A OTP。實際產線須另行整合 HSM、晶片序號讀取、OTP 容量／鎖定檢查、燒錄、回讀驗證與稽核。GUI 的公鑰資料夾僅供示範；機台韌體應固定內建受信任公鑰。Windows CLI 透過內嵌 UTF-8 manifest 支援中文檔案路徑；此功能需要 Windows 10 1903 或更新版本。
 
 原有 CLI 完整保留；編譯後仍可直接執行 `keygen.exe`、`sign.exe` 與 `verify.exe`，不需要啟動 GUI。`keygen` 與 `sign` 透過環境變數 `TONER_DEMO_KEY_PASSWORD` 讀取測試密碼，不把密碼放在命令列參數中。
+
+獨立 GUI 執行檔建置與操作方式請見[使用指南](USER_GUIDE.md)。
+
+完成 C 程式編譯且安裝 Windows PowerShell 5.1 可用的 `ps2exe` 模組後，可執行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build_gui_exe.ps1`，產生單檔 `dist\TonerSerialSignature.exe`。該執行檔會將所需的 C 工具與 runtime 內嵌，首次啟動時解至使用者的 LocalAppData；不需在使用端安裝編譯工具。
 
 ## 簽署紀錄與信任模型
 

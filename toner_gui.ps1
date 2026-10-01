@@ -19,6 +19,11 @@ $script:flowSuccess = $false
 $script:flowFailure = ''
 $script:flowRoot = $null
 $script:flowPassword = ''
+$hostExecutable = [IO.Path]::GetFileNameWithoutExtension(
+    [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName).ToLowerInvariant()
+$script:packaged = $hostExecutable -notin @('powershell', 'pwsh', 'powershell_ise')
+$script:payloadRoot = Join-Path $env:LOCALAPPDATA 'TonerSerialSignature'
+$script:appRoot = if ($script:packaged) { $script:payloadRoot } else { $PSScriptRoot }
 
 function Remove-Temporary([string]$path, [string]$prefix) {
     if (-not $path) { return }
@@ -58,11 +63,12 @@ function Quote-Argument([string]$value) {
 
 function Get-Program([string]$name) {
     foreach ($candidate in @(
-        (Join-Path $PSScriptRoot "build\windows\Release\$name.exe"),
-        (Join-Path $PSScriptRoot "build\windows\$name.exe")
+        (Join-Path $script:appRoot "build\windows\Release\$name.exe"),
+        (Join-Path $script:appRoot "build\windows\$name.exe")
     )) {
         if ([IO.File]::Exists($candidate)) { return $candidate }
     }
+    if ($script:packaged) { throw "隨附的 $name.exe 遺失；請重新下載或重新安裝 GUI。" }
     throw "找不到 $name.exe；請先在「測試」頁執行編譯。"
 }
 
@@ -203,12 +209,20 @@ function Add-Button($tab, [string]$caption, [int]$y) {
     return $button
 }
 
-Add-Note $testTab '以 MSVC 和 OpenSSL 編譯 C 程式，並執行 26 項正反向檢查。首次執行請參考 README 安裝編譯工具。' 32
+$testNote = '以 MSVC 和 OpenSSL 編譯 C 程式，並執行 26 項正反向檢查。首次執行請參考 README 安裝編譯工具。'
+if ($script:packaged) { $testNote = '使用隨附的 C 工具執行 26 項正反向檢查。打包版不會在這台電腦重新編譯。' }
+Add-Note $testTab $testNote 32
 $skipBuild = New-Object Windows.Forms.CheckBox
 $skipBuild.Text = '只執行測試（略過編譯）'
 $skipBuild.SetBounds(24, 105, 350, 32)
 $testTab.Controls.Add($skipBuild)
+if ($script:packaged) {
+    $skipBuild.Checked = $true
+    $skipBuild.Enabled = $false
+    $skipBuild.Text = '使用隨附程式執行測試（不重新編譯）'
+}
 $testButton = Add-Button $testTab '開始編譯與測試' 101
+if ($script:packaged) { $testButton.Text = '開始測試' }
 
 $keyId = Add-Row $keyTab '金鑰 ID（01–FF）' 16 '' $false '01'
 $privateFile = Add-Row $keyTab '加密私鑰檔案' 59 'Save'
@@ -288,7 +302,7 @@ function Start-Job([string]$kind, [string]$program, [string[]]$arguments,
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $program
     $info.Arguments = $line
-    $info.WorkingDirectory = $PSScriptRoot
+    $info.WorkingDirectory = $script:appRoot
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
     $info.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
@@ -323,7 +337,7 @@ function Start-Error([string]$message) {
 
 $testButton.Add_Click({
     try {
-        $runner = Join-Path $PSScriptRoot 'run_tests.ps1'
+        $runner = Join-Path $script:appRoot 'run_tests.ps1'
         Assert-File $runner '測試腳本'
         $shell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
         $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $runner)
