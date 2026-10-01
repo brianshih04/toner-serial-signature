@@ -7,6 +7,7 @@
 #include <openssl/sha.h>
 
 #include "record.h"
+#include "ui.h"
 
 typedef struct {
     uint8_t key_id;
@@ -82,9 +83,11 @@ int main(void)
     uint8_t out[TONER_RECORD_MAX_SIZE];
     size_t i, out_len = 99;
 
+    toner_ui_init();
+
     for (i = 0; i < sizeof(vectors) / sizeof(vectors[0]); ++i) {
         if (!check_vector(&vectors[i])) {
-            fprintf(stderr, "golden vector %zu FAILED\n", i + 1u);
+            fprintf(stderr, "黃金測試向量 %zu 未通過\n", i + 1u);
             return 1;
         }
     }
@@ -96,10 +99,10 @@ int main(void)
                             out, 1, &out_len) || out_len != 0 ||
         toner_record_encode(1, sn, "S KU", 4, 'K', "XL", 2,
                             out, sizeof(out), &out_len) || out_len != 0) {
-        fprintf(stderr, "invalid-field rejection FAILED\n");
+        fprintf(stderr, "無效欄位拒絕測試未通過\n");
         return 1;
     }
-    printf("%zu golden record/hash vectors and invalid-field cases PASS\n",
+    printf("%zu 組紀錄／雜湊黃金測試向量及無效欄位測試均通過\n",
            sizeof(vectors) / sizeof(vectors[0]));
     return 0;
 }

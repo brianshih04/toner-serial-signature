@@ -12,6 +12,7 @@
  * Usage: TONER_DEMO_KEY_PASSWORD=<secret> ./keygen private.pem public.pem
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,8 @@
 #include <openssl/evp.h>
 #include <openssl/opensslv.h>
 #include <openssl/pem.h>
+
+#include "ui.h"
 
 int main(int argc, char **argv)
 {
@@ -32,12 +35,14 @@ int main(int argc, char **argv)
     int private_created = 0;
     int result = 1;
 
+    toner_ui_init();
+
     if (argc != 3 || strcmp(argv[1], argv[2]) == 0) {
-        fprintf(stderr, "Usage: %s private.pem public.pem\n", argv[0]);
+        fprintf(stderr, "用法：%s private.pem public.pem\n", argv[0]);
         return 1;
     }
     if (password == NULL || strlen(password) < 16 || strlen(password) > 1024) {
-        fprintf(stderr, "Set TONER_DEMO_KEY_PASSWORD (16-1024 bytes).\n");
+        fprintf(stderr, "請設定 TONER_DEMO_KEY_PASSWORD（16 至 1024 位元組）。\n");
         return 1;
     }
 
@@ -62,7 +67,7 @@ int main(int argc, char **argv)
     /* Exclusive create: never silently replace an existing key file. */
     out = fopen(argv[2], "wbx");
     if (out == NULL) {
-        perror("create public key");
+        fprintf(stderr, "無法建立公鑰檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     public_created = 1;
@@ -70,14 +75,14 @@ int main(int argc, char **argv)
         goto crypto_error;
     if (fclose(out) != 0) {
         out = NULL;
-        perror("close public key");
+        fprintf(stderr, "無法關閉公鑰檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     out = NULL;
 
     out = fopen(argv[1], "wbx");
     if (out == NULL) {
-        perror("create private key");
+        fprintf(stderr, "無法建立私鑰檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     private_created = 1;
@@ -87,13 +92,13 @@ int main(int argc, char **argv)
         goto crypto_error;
     if (fclose(out) != 0) {
         out = NULL;
-        perror("close private key");
+        fprintf(stderr, "無法關閉私鑰檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     out = NULL;
 
-    printf("Created encrypted test private key: %s\n", argv[1]);
-    printf("Created public key for verifier: %s\n", argv[2]);
+    printf("已建立加密的測試私鑰：%s\n", argv[1]);
+    printf("已建立驗章公鑰：%s\n", argv[2]);
     result = 0;
     goto done;
 

@@ -1,4 +1,4 @@
-name: Windows C validation
+name: Windows C 程式驗證
 
 on:
   push:
@@ -12,6 +12,11 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v5
-      - name: Build and test with MSVC and OpenSSL
+      - name: 使用 MSVC 與 OpenSSL 編譯並測試
         shell: pwsh
         run: ./run_tests.ps1 -VcpkgRoot "$env:VCPKG_INSTALLATION_ROOT"
+      - name: 驗證繁中圖形介面簽發流程
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\toner_gui.ps1 -SelfTestFlow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

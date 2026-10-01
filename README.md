@@ -1,6 +1,6 @@
 # 碳粉匣序號簽章：C 參考程式與 Windows 測試
 
-這是以 ECDSA P-256/SHA-256 簽署 ATSHA204A 碳粉匣標準化紀錄的開發參考程式。專案包含三支命令列 C 程式（`keygen`、`sign`、`verify`）、共用的紀錄編碼器、固定的黃金測試向量，以及可在 Windows 原生執行的測試腳本。程式**不會燒錄晶片，也未整合至印表機韌體**。
+這是以 ECDSA P-256/SHA-256 簽署 ATSHA204A 碳粉匣標準化紀錄的開發參考程式。專案包含三支命令列 C 程式（`keygen`、`sign`、`verify`）、簡易繁中 Windows 圖形介面、共用的紀錄編碼器、固定的黃金測試向量，以及可在 Windows 原生執行的測試腳本。程式**不會燒錄晶片，也未整合至印表機韌體**。
 
 ## 在 Windows 執行
 
@@ -14,7 +14,21 @@ powershell.exe -NoProfile -File .\run_tests.ps1
 pwsh -File .\run_tests.ps1 -VcpkgRoot C:\vcpkg
 ```
 
-腳本透過 CMake/vcpkg，以 MSVC 和 OpenSSL 編譯 C 程式，再執行 26 項檢查。測試用的加密金鑰會建立在作業系統暫存目錄，測試結束後即移除。看到 `RESULT: 26 passed, 0 failed` 即代表全部通過。每次推送或提交 pull request 時，GitHub Actions 也會在 `windows-2022` 執行同一腳本。專案另附適用於 POSIX 環境的 `run_tests.sh`。
+腳本透過 CMake/vcpkg，以 MSVC 和 OpenSSL 編譯 C 程式，再執行 26 項檢查。測試用的加密金鑰會建立在作業系統暫存目錄，測試結束後即移除。看到 `結果：26 項通過，0 項失敗` 即代表全部通過。每次推送或提交 pull request 時，GitHub Actions 也會在 `windows-2022` 執行同一腳本。專案另附適用於 POSIX 環境的 `run_tests.sh`。
+
+## 繁中圖形介面
+
+完成上述編譯環境安裝後，在 Windows 雙擊 `start_gui.cmd`，或執行：
+
+```powershell
+powershell.exe -NoProfile -STA -File .\toner_gui.ps1
+```
+
+介面有「測試」、「產生測試金鑰」、「工廠簽發（示範）」及「驗證簽章」四頁。首次使用先在「測試」頁編譯，之後即可產生加密測試私鑰與 `key-XX.pem` 公鑰、輸入晶片序號與 SKU 等欄位來產生 64-byte `r||s` 簽章檔，再用本機受信任的公鑰資料夾驗章。簽發頁輸入的序號**必須來自實際 ATSHA204A 的 Config zone**；本程式沒有晶片讀取功能，無法自行確認輸入來源。既有檔案不會被覆寫；密碼欄位會遮蔽，作業完成後清空。若只想重跑測試，可勾選「只執行測試（略過編譯）」。
+
+此介面只是既有 C CLI 的操作殼。它使用本機加密 PEM 私鑰，**不是 HSM 量產簽發系統**，也不會將簽章寫入 ATSHA204A OTP。實際產線須另行整合 HSM、晶片序號讀取、OTP 容量／鎖定檢查、燒錄、回讀驗證與稽核。GUI 的公鑰資料夾僅供示範；機台韌體應固定內建受信任公鑰。
+
+原有 CLI 完整保留；編譯後仍可直接執行 `keygen.exe`、`sign.exe` 與 `verify.exe`，不需要啟動 GUI。`keygen` 與 `sign` 透過環境變數 `TONER_DEMO_KEY_PASSWORD` 讀取測試密碼，不把密碼放在命令列參數中。
 
 ## 簽署紀錄與信任模型
 

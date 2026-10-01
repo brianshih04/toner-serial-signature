@@ -20,6 +20,7 @@
  * Usage: TONER_DEMO_KEY_PASSWORD=<secret> ./sign private.pem KEY_ID_HEX SN18HEX SKU COLOR CAPACITY_CODE signature.bin
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,7 @@
 #include <openssl/sha.h>
 
 #include "record.h"
+#include "ui.h"
 
 enum { RAW_SIG_SIZE = 64 };
 
@@ -75,7 +77,7 @@ static EC_KEY *get_p256_key(EVP_PKEY *key)
     }
     group = EC_KEY_get0_group(ec);
     if (group == NULL || EC_GROUP_get_curve_name(group) != NID_X9_62_prime256v1) {
-        fprintf(stderr, "EC key has wrong or unnamed curve (NID=%d).\n",
+        fprintf(stderr, "EC 金鑰曲線錯誤或未命名（NID=%d）。\n",
                 group == NULL ? 0 : EC_GROUP_get_curve_name(group));
         EC_KEY_free(ec);
         return NULL;
@@ -108,18 +110,20 @@ int main(int argc, char **argv)
     FILE *in = NULL, *out = NULL;
     int output_created = 0, result = 1;
 
+    toner_ui_init();
+
     if (argc != 8 || !parse_hex(argv[2], 1, &key_id) ||
         !parse_hex(argv[3], TONER_SN_SIZE, sn) ||
         !toner_record_encode(key_id, sn, argv[4], strlen(argv[4]),
                              argv[5][0] != '\0' && argv[5][1] == '\0' ? argv[5][0] : '\0',
                              argv[6], strlen(argv[6]),
                              record, sizeof(record), &record_len)) {
-        fprintf(stderr, "Usage: %s private.pem KEY_ID_HEX SN18HEX SKU COLOR CAPACITY_CODE signature.bin\n", argv[0]);
-        fprintf(stderr, "Key ID: 01-FF; SN: 18 hex digits; COLOR: K/C/M/Y.\n");
+        fprintf(stderr, "用法：%s private.pem KEY_ID_HEX SN18HEX SKU COLOR CAPACITY_CODE signature.bin\n", argv[0]);
+        fprintf(stderr, "金鑰 ID：01-FF；序號：18 個十六進位字元；顏色：K/C/M/Y。\n");
         return 1;
     }
     if (password == NULL) {
-        fprintf(stderr, "Set TONER_DEMO_KEY_PASSWORD.\n");
+        fprintf(stderr, "請設定 TONER_DEMO_KEY_PASSWORD。\n");
         return 1;
     }
 
@@ -130,7 +134,7 @@ int main(int argc, char **argv)
 
     in = fopen(argv[1], "rb");
     if (in == NULL) {
-        perror("open private key");
+        fprintf(stderr, "無法開啟私鑰檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     key = PEM_read_PrivateKey(in, NULL, NULL, (void *)password);
@@ -140,7 +144,7 @@ int main(int argc, char **argv)
         goto crypto_error;
     ec = get_p256_key(key);        /* Owned reference; free below. */
     if (ec == NULL) {
-        fprintf(stderr, "Private key must be EC P-256.\n");
+        fprintf(stderr, "私鑰必須使用 EC P-256。\n");
         goto done;
     }
 
@@ -167,21 +171,21 @@ int main(int argc, char **argv)
 
     out = fopen(argv[7], "wbx");
     if (out == NULL) {
-        perror("create signature file");
+        fprintf(stderr, "無法建立簽章檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     output_created = 1;
     if (fwrite(raw, 1, sizeof(raw), out) != sizeof(raw)) {
-        perror("write signature");
+        fprintf(stderr, "無法寫入簽章檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     if (fclose(out) != 0) {
         out = NULL;
-        perror("close signature");
+        fprintf(stderr, "無法關閉簽章檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     out = NULL;
-    printf("Created %zu-byte raw ECDSA signature: %s\n", sizeof(raw), argv[7]);
+    printf("已建立 %zu 位元組的 ECDSA 原始簽章：%s\n", sizeof(raw), argv[7]);
     result = 0;
     goto done;
 

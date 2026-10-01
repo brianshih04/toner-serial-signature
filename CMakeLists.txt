@@ -30,7 +30,7 @@ endif()
 
 foreach(target IN ITEMS toner_record keygen sign verify record_test)
     if(MSVC)
-        target_compile_options(${target} PRIVATE /W4 /WX /wd4996)
+        target_compile_options(${target} PRIVATE /W4 /WX /wd4996 /utf-8)
     elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(${target} PRIVATE
             -Wall -Wextra -Werror -Wno-deprecated-declarations)

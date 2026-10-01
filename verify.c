@@ -39,6 +39,7 @@
 #include <openssl/sha.h>
 
 #include "record.h"
+#include "ui.h"
 
 enum { RAW_SIG_SIZE = 64 };
 
@@ -80,7 +81,7 @@ static EC_KEY *get_p256_key(EVP_PKEY *key)
     }
     group = EC_KEY_get0_group(ec);
     if (group == NULL || EC_GROUP_get_curve_name(group) != NID_X9_62_prime256v1) {
-        fprintf(stderr, "EC key has wrong or unnamed curve (NID=%d).\n",
+        fprintf(stderr, "EC 金鑰曲線錯誤或未命名（NID=%d）。\n",
                 group == NULL ? 0 : EC_GROUP_get_curve_name(group));
         EC_KEY_free(ec);
         return NULL;
@@ -103,8 +104,10 @@ int main(int argc, char **argv)
     EVP_PKEY *key = NULL;
     FILE *in = NULL;
 
+    toner_ui_init();
+
     if (argc != 8) {
-        fprintf(stderr, "Usage: %s TRUSTED_KEY_DIR KEY_ID_HEX SN18HEX SKU COLOR CAPACITY_CODE signature.bin\n", argv[0]);
+        fprintf(stderr, "用法：%s TRUSTED_KEY_DIR KEY_ID_HEX SN18HEX SKU COLOR CAPACITY_CODE signature.bin\n", argv[0]);
         return 1;
     }
     if (!parse_hex(argv[2], 1, &key_id) ||
@@ -113,7 +116,7 @@ int main(int argc, char **argv)
                              argv[5][0] != '\0' && argv[5][1] == '\0' ? argv[5][0] : '\0',
                              argv[6], strlen(argv[6]),
                              record, sizeof(record), &record_len)) {
-        puts("INVALID: record field format");
+        puts("驗證失敗：紀錄欄位格式不正確");
         return 2;
     }
 
@@ -123,12 +126,12 @@ int main(int argc, char **argv)
 
     in = fopen(argv[7], "rb");
     if (in == NULL) {
-        perror("open signature");
+        fprintf(stderr, "無法開啟簽章檔案（錯誤碼 %d）。\n", errno);
         goto done;
     }
     if (fread(raw, 1, sizeof(raw), in) != sizeof(raw) ||
         fgetc(in) != EOF || ferror(in)) {
-        puts("INVALID: signature must be exactly 64 bytes");
+        puts("驗證失敗：簽章長度必須恰好為 64 位元組");
         result = 2;
         goto done;
     }
@@ -139,16 +142,16 @@ int main(int argc, char **argv)
      * The keyring is trusted host state, not cartridge-supplied data. */
     path_len = snprintf(key_path, sizeof(key_path), "%s/key-%02X.pem", argv[1], key_id);
     if (path_len < 0 || (size_t)path_len >= sizeof(key_path)) {
-        fprintf(stderr, "Trusted keyring path too long.\n");
+        fprintf(stderr, "受信任公鑰目錄路徑過長。\n");
         goto done;
     }
     in = fopen(key_path, "rb");
     if (in == NULL) {
         if (errno == ENOENT) {
-            puts("INVALID: key ID not active in trusted keyring");
+            puts("驗證失敗：金鑰 ID 不在有效的受信任公鑰表中");
             result = 2;
         } else {
-            perror("open trusted public key");
+            fprintf(stderr, "無法開啟受信任公鑰檔案（錯誤碼 %d）。\n", errno);
         }
         goto done;
     }
@@ -159,7 +162,7 @@ int main(int argc, char **argv)
         goto crypto_error;
     ec = get_p256_key(key);        /* Owned reference; free below. */
     if (ec == NULL) {
-        fprintf(stderr, "Public key must be EC P-256.\n");
+        fprintf(stderr, "公鑰必須使用 EC P-256。\n");
         goto done;
     }
 
@@ -187,10 +190,10 @@ int main(int argc, char **argv)
         goto crypto_error;
     verdict = ECDSA_do_verify(digest, SHA256_DIGEST_LENGTH, sig, ec);
     if (verdict == 1) {            /* 0 = bad signature, -1 = error:    */
-        puts("VALID");             /* both are a rejection.             */
+        puts("驗證通過");           /* both are a rejection.             */
         result = 0;
     } else {
-        puts("INVALID");
+        puts("驗證失敗");
         result = 2;
     }
     goto done;
